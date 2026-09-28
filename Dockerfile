@@ -45,6 +45,10 @@ RUN a2enmod \
     proxy_wstunnel \
     headers
 
+RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
+    && sed -i 's!<Directory /var/www/>!<Directory /var/www/html/public/>\n\tOptions Indexes FollowSymLinks\n\tAllowOverride All\n\tRequire all granted\n</Directory>\n#<Directory /var/www/>!g' /etc/apache2/apache2.conf
+
+
 
 
 
@@ -106,43 +110,6 @@ RUN mkdir -p \
     && chmod -R 775 storage bootstrap/cache
 
 
-
-# ==================================
-# Supervisor Config
-# Apache + Reverb
-# ==================================
-RUN mkdir -p /var/log/supervisor
-
-
-RUN cat <<'EOF' > /etc/supervisor/supervisord.conf
-
-[supervisord]
-nodaemon=true
-logfile=/dev/null
-
-
-[program:apache]
-command=/usr/local/bin/apache2-foreground
-autostart=true
-autorestart=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-
-
-[program:reverb]
-command=/usr/local/bin/php /var/www/html/artisan reverb:start --host=0.0.0.0 --port=8080
-directory=/var/www/html
-autostart=true
-autorestart=true
-startsecs=5
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-
-EOF
 
 
 
