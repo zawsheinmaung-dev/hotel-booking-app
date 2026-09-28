@@ -1,66 +1,166 @@
-FROM php:8.2-apache
-
-# Install system dependencies and ALL required PHP extensions including pgsql
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     zlib1g-dev \
     libxml2-dev \
     libzip-dev \
     libonig-dev \
-    libcurl4-openssl-dev \
-    libsqlite3-dev \
     libpq-dev \
     zip \
-    curl \
     unzip \
+    curl \
     git \
+    supervisor \
     && docker-php-ext-configure gd \
-    && docker-php-ext-install pdo_mysql pdo_pgsql mbstring zip exif pcntl bcmath gd ctype fileinfo xml
+    && docker-php-ext-install \
+        pdo_mysql \
+        pdo_pgsql \
+        mbstring \
+        zip \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        ctype \
+        fileinfo \
+        xml \
+    && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache rewrite module
-RUN a2enmod rewrite
 
-COPY --from=node:18 /usr/local/bin /usr/local/bin
-COPY --from=node:18 /usr/local/lib/node_modules /usr/local/lib/node_modules
 
-# Update Apache VirtualHost configuration directly to allow overrides and set document root
-RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
-RUN sed -i 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf
+# ==================================
+# Node.js 20
+# ==================================
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
-# Force Apache to allow .htaccess on the public directory specifically
-RUN echo '<Directory /var/www/html/public>\n\
-    Options Indexes FollowSymLinks\n\
-    AllowOverride All\n\
-    Require all granted\n\
-</Directory>' >> /etc/apache2/apache2.conf
 
-# Install Composer
+
+# ==================================
+# Apache Modules
+# ==================================
+RUN a2enmod \
+    rewrite \
+    proxy \
+    proxy_http \
+    proxy_wstunnel \
+    headers
+
+
+
+
+
+# ==================================
+# Composer
+# ==================================
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy project files
+
+
 WORKDIR /var/www/html
+
+
+
+# ==================================
+# Copy Laravel Project
+# ==================================
 COPY . .
 
-# Set Composer environment variable to allow superuser
+
+
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# Install PHP dependencies
-RUN export COMPOSER_PROCESS_TIMEOUT=600 && \
-    composer install --no-dev --optimize-autoloader --ignore-platform-reqs --no-scripts --prefer-dist --no-interaction
+
+
+# ==================================
+# Install Laravel Packages
+# ==================================
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --prefer-dist
 
 
 
-# Install Frontend dependencies and Build assets for Laravel Breeze
-RUN npm install && npm run build
 
-# Set permissions
-RUN php artisan optimize:clear
-RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# ==================================
+# Build Frontend
+# ==================================
+RUN npm install
 
-
-
-# Run migrations automatically before launching Apache
+RUN npm run build
 
 
+
+# ==================================
+# Laravel Permission
+# ==================================
+RUN mkdir -p \
+    storage/logs \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    bootstrap/cache \
+    && touch storage/logs/laravel.log \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+
+
+# ==================================
+# Supervisor Config
+# Apache + Reverb
+# ==================================
+RUN mkdir -p /var/log/supervisor
+
+
+RUN cat <<'EOF' > /etc/supervisor/supervisord.conf
+
+[supervisord]
+nodaemon=true
+logfile=/dev/null
+
+
+[program:apache]
+command=/usr/local/bin/apache2-foreground
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+
+[program:reverb]
+command=/usr/local/bin/php /var/www/html/artisan reverb:start --host=0.0.0.0 --port=8080
+directory=/var/www/html
+autostart=true
+autorestart=true
+startsecs=5
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+EOF
+
+
+
+# ==================================
+# Laravel Cache Clear
+# ==================================
+RUN php artisan optimize:clear || true
+
+
+
+# ==================================
+# Render Port
+# ==================================
 EXPOSE 80
+
+
+
+# ==================================
+# Start
+# ==================================
+CMD ["supervisord","-c","/etc/supervisor/supervisord.conf"]
