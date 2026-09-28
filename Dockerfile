@@ -25,10 +25,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ==================================
-# Node.js 20
+# Node.js 20 (Fixed)
 # ==================================
-RUN curl -fsSL https://nodesource.com | bash - \
-    && apt-get install -y nodejs
+RUN apt-get update && apt-get install -y ca-certificates gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://nodesource.com | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://nodesource.com nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y nodejs
 
 # ==================================
 # Apache Modules & VirtualHost Config
