@@ -25,13 +25,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ==================================
-# Node.js 20 (Fixed)
+# Node.js 20 & NPM (Multi-stage COPY စနစ်သစ် - ပြင်ဆင်ထားသောနေရာ)
 # ==================================
-RUN apt-get update && apt-get install -y ca-certificates gnupg \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://nodesource.com | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://nodesource.com nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update && apt-get install -y nodejs
+COPY --from=node:20 /usr/local/bin /usr/local/bin
+COPY --from=node:20 /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 # ==================================
 # Apache Modules & VirtualHost Config
