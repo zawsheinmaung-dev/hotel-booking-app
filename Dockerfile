@@ -62,14 +62,14 @@ COPY . .
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # ==================================
-# Install Laravel Packages (Memory Optimized)
+# Install Laravel Packages (Fixed with --no-scripts)
 # ==================================
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
     --no-interaction \
     --prefer-dist \
-    --classmap-authoritative
+    --no-scripts
 
 # ==================================
 # Build Frontend (Memory Limited to 256MB)
