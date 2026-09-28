@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y \
         pcntl \
         bcmath \
         gd \
-        ctype \
         fileinfo \
         xml \
     && rm -rf /var/lib/apt/lists/*
@@ -28,21 +27,24 @@ RUN apt-get update && apt-get install -y \
 # ==================================
 # Node.js 20
 # ==================================
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://nodesource.com | bash - \
     && apt-get install -y nodejs
 
 # ==================================
 # Apache Modules & VirtualHost Config
 # ==================================
-RUN a2enmod \
-    rewrite \
-    proxy \
-    proxy_http \
-    proxy_wstunnel \
-    headers
+RUN a2enmod rewrite proxy proxy_http proxy_wstunnel headers
 
-RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
-    && sed -i 's!<Directory /var/www/>!<Directory /var/www/html/public/>\n\tOptions Indexes FollowSymLinks\n\tAllowOverride All\n\tRequire all granted\n</Directory>\n#<Directory /var/www/>!g' /etc/apache2/apache2.conf
+RUN echo '<VirtualHost *:80>\n\
+    DocumentRoot /var/www/html/public\n\
+    <Directory /var/www/html/public>\n\
+        Options Indexes FollowSymLinks\n\
+        AllowOverride All\n\
+        Require all granted\n\
+    </Directory>\n\
+    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
+    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # ==================================
 # Composer
@@ -87,10 +89,6 @@ RUN mkdir -p \
     && chmod -R 775 storage bootstrap/cache
 
 # ==================================
-# Start 
-# ==================================
-CMD php artisan optimize:clear && apache2-foreground
-# ==================================
 # Render Port
 # ==================================
 EXPOSE 80
@@ -98,4 +96,4 @@ EXPOSE 80
 # ==================================
 # Start
 # ==================================
-CMD ["apache2-foreground"]
+CMD php artisan optimize:clear && apache2-foreground
