@@ -22,10 +22,11 @@ RUN apt-get update && apt-get install -y \
         gd \
         fileinfo \
         xml \
+        opcache \
     && rm -rf /var/lib/apt/lists/*
 
 # ==================================
-# Node.js 20 & NPM (Multi-stage COPY စနစ်သစ် - ပြင်ဆင်ထားသောနေရာ)
+# Node.js 20 & NPM (Multi-stage COPY)
 # ==================================
 COPY --from=node:20 /usr/local/bin /usr/local/bin
 COPY --from=node:20 /usr/local/lib/node_modules /usr/local/lib/node_modules
@@ -61,19 +62,20 @@ COPY . .
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # ==================================
-# Install Laravel Packages
+# Install Laravel Packages (Memory Optimized)
 # ==================================
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
     --no-interaction \
-    --prefer-dist
+    --prefer-dist \
+    --classmap-authoritative
 
 # ==================================
-# Build Frontend
+# Build Frontend (Memory Limited to 256MB)
 # ==================================
 RUN npm install
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=256" npm run build
 
 # ==================================
 # Laravel Permission
