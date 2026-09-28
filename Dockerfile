@@ -96,4 +96,4 @@ EXPOSE 80
 # ==================================
 # Start
 # ==================================
-CMD php artisan optimize:clear && apache2-foreground
+CMD ["apache2-foreground"]
