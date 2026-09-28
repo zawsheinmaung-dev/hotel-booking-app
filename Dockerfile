@@ -54,10 +54,13 @@ RUN export COMPOSER_PROCESS_TIMEOUT=600 && \
 RUN npm install && npm run build
 
 # Set permissions
+RUN php artisan optimize:clear
+RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+
+
 # Run migrations automatically before launching Apache
-CMD php artisan migrate --force && php artisan db:seed --force && apache2-foreground
 
 
 EXPOSE 80
