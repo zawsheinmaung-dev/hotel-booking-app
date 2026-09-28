@@ -87,10 +87,9 @@ RUN mkdir -p \
     && chmod -R 775 storage bootstrap/cache
 
 # ==================================
-# Laravel Cache Clear (Database Error ကင်းဝေးစေရန် ပြင်ဆင်ထားသည်)
+# Start 
 # ==================================
-RUN DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan optimize:clear
-
+CMD php artisan optimize:clear && apache2-foreground
 # ==================================
 # Render Port
 # ==================================
